@@ -1,0 +1,17 @@
+.git/
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+logs/
+temp_img/
+
+src/config.py
+vk_state.json
+vk_login.py
+
+.env
+.venv/
+venv/

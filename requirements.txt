@@ -1,0 +1,4 @@
+pyTelegramBotAPI==4.37.0
+Requests==2.34.2
+playwright==1.63.0
+dotenv==0.9.9

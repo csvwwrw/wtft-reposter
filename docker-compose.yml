@@ -1,0 +1,14 @@
+services:
+  wtft-bot:
+    image: wtft-bot:latest
+    container_name: wtft-bot
+
+    restart: unless-stopped
+    init: true
+    shm_size: "1gb"
+
+    volumes:
+      - ./src/config.py:/app/src/config.py:ro
+      - ./vk_state.json:/app/vk_state.json
+      - ./logs:/app/logs
+      - ./temp_img:/app/temp_img

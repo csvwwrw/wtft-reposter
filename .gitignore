@@ -1,0 +1,7 @@
+logs/
+temp_img/
+.idea/
+*__pycache__/
+vk_state.json
+price.png
+.env
