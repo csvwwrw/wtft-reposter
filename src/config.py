@@ -47,6 +47,8 @@ class Config:
     VK_GROUP_URL = required('VK_GROUP_URL')
     VK_GROUP_ID = int(required('VK_GROUP_ID'))
 
+    TG_CHANNEL = required('TG_CHANNEL')
+
     TG_ALERT_SUPERGROUP_ID = int(required('TG_ALERT_SUPERGROUP_ID'))
     TG_ALERT_TOPIC_ID = int(required('TG_ALERT_TOPIC_ID'))
 

@@ -51,7 +51,7 @@ def create_bot(settings:Config) -> telebot.TeleBot:
         bot.send_message(
             chat_id=settings.TG_ALERT_SUPERGROUP_ID,
             text=f'Произошла ошибка при копировании поста '
-                 f'https://t.me/catdead_tester_channel/{message_id} '
+                 f'https://t.me/{settings.TG_CHANNEL}/{message_id} '
                  f'в ВК. <b>Повторите вручную.</b>',
             message_thread_id=settings.TG_ALERT_TOPIC_ID,
         )
@@ -81,15 +81,16 @@ def create_bot(settings:Config) -> telebot.TeleBot:
 
     def _clear_temp_img_dir() -> None:
         """
-        Clear and recreate temporary image directory to purge stale
-        files.
+        Remove stale temporary files without deleting the directory.
         """
         temp_img_dir = Path(settings.TEMP_IMG_DIR)
-
-        if temp_img_dir.exists():
-            shutil.rmtree(temp_img_dir)
-
         temp_img_dir.mkdir(parents=True, exist_ok=True)
+
+        for item in temp_img_dir.iterdir():
+            if item.is_symlink() or item.is_file():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
 
     def _find_caption_message(
             messages:list[telebot.types.Message]
@@ -109,51 +110,50 @@ def create_bot(settings:Config) -> telebot.TeleBot:
         Download album photos, format the post caption, and trigger VK
         publication.
         """
+
+        _clear_temp_img_dir()
+        messages.sort(key=lambda message: message.message_id) # redundancy for self-testing
+        caption_message = _find_caption_message(messages)
+
+        image_paths = []
+        logger.info('\tPreparing images...')
+        for number, message in enumerate(messages, start=1):
+            image_path = _download_image(
+                image=message.photo[-1],
+                temp_img_dir=settings.TEMP_IMG_DIR,
+                n=number
+            )
+            image_paths.append(image_path)
+
+        logger.info('\tPreparing caption...')
+        caption = build_caption(
+            caption=caption_message.caption,
+            caption_entities= caption_message.caption_entities,
+            settings=settings
+        )
+
+        processed_post = ProcessedPost(
+            caption=caption,
+            image_paths=image_paths,
+            source_post_id=caption_message.message_id
+        )
+
+        logger.info(
+            '\tPrepared Telegram post with %s image(s)',
+            len(processed_post.image_paths),
+        )
+
+        logger.info("\t========== POST READY ==========")
+        logger.info("\tCaption:\n%s", processed_post.caption)
+        logger.info("\tImage paths: %s", processed_post.image_paths)
+        logger.info("\t================================")
+
         try:
-            _clear_temp_img_dir()
-            messages.sort(key=lambda message: message.message_id) # redundancy for self-testing
-            caption_message = _find_caption_message(messages)
-
-            image_paths = []
-            logger.info('\tPreparing images...')
-            for number, message in enumerate(messages, start=1):
-                image_path = _download_image(
-                    image=message.photo[-1],
-                    temp_img_dir=settings.TEMP_IMG_DIR,
-                    n=number
-                )
-                image_paths.append(image_path)
-
-            logger.info('\tPreparing caption...')
-            caption = build_caption(
-                caption=caption_message.caption,
-                caption_entities= caption_message.caption_entities,
-                settings=settings
-            )
-
-            processed_post = ProcessedPost(
-                caption=caption,
-                image_paths=image_paths,
-                source_post_id=caption_message.message_id
-            )
-
-            logger.info(
-                '\tPrepared Telegram post with %s image(s)',
-                len(processed_post.image_paths),
-            )
-
-            logger.info("\t========== POST READY ==========")
-            logger.info("\tCaption:\n%s", processed_post.caption)
-            logger.info("\tImage paths: %s", processed_post.image_paths)
-            logger.info("\t================================")
-
             vk_poster = VkPoster(settings)
             vk_poster.publish(processed_post)
 
-            logger.info('\tPosted!')
-
         except Exception as e:
-            logging.error(e)
+            logger.exception('Reposting exception: ' + e)
             _error_message(messages[0].message_id)
 
     @bot.message_handler(chat_types=['private'], commands=['start', 'help', 'ads'])
